@@ -21,7 +21,6 @@ node_leader = null
 list_neighbors = process.argv.slice(4)
 term = 0
 vote = 0
-vote_for = 0
 
 app.use(bodyParser.urlencoded({ extended: false }))
 
