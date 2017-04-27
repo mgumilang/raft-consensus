@@ -15,7 +15,7 @@ function sendID() {
   console.log(`Server #${id}: Usage = ${usage}`)
   for (let i = 0; i < numNodes; i++) {
     request.post(nodes[i]).form({
-      type: 'daemon'
+      type: 'daemon',
       id: id,
       cpu: usage
     })
