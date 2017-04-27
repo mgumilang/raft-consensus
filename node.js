@@ -31,13 +31,20 @@ app.post('/', (req, res) => {
   if (type == 'node') {
     get_port = req.body.port
     get_data = req.body.data
-    if (get_data == 'vote me') {
+    get_purpose = req.body.purpose
+    if (get_purpose == 'vote') {
       get_term = parseInt(req.body.term)
       //update term
       if (term < get_term) {
         term = get_term
         res.send('bitch I vote for '+get_port+' for term '+term)
       }
+      resolver()
+    } else if (get_purpose == 'leader') {
+      node_leader = get_port
+      console.log(port+' got instruction from leader '+node_leader)
+      res.send('ok')
+      resolver('me_is_the_bitch')
     }
   } else if (type == 'daemon') {
     serverID = req.body.id
@@ -48,20 +55,42 @@ app.post('/', (req, res) => {
 })
 
 function beCandidate() {
+  vote += 1
   status = CANDIDATE
   let i = 0
   for (i = 0; i < list_neighbors.length; i++) {
     request.post({url:('http://localhost:' + list_neighbors[i]), form: {
       type: 'node',
+      purpose: 'vote',
       port: port,
       data: 'vote me',
       term: term
     }}, function(err, res, body) {
-      console.log('callback?')
-      if (res) {
+      if ((res) && (status == CANDIDATE)) {
         //console.log(res)
         vote += 1
         console.log(`term ${term}, vote for ${port} = ${vote}`)
+        if (vote > Math.floor(list_neighbors.length / 2)) {
+          status = LEADER
+          resolver('boss_ass_bitch')
+        }
+      }
+    })
+  }
+}
+
+function leaderSend() {
+  let data = 'leader me'
+  for (i = 0; i < list_neighbors.length; i++) {
+    request.post({url:('http://localhost:' + list_neighbors[i]), form: {
+      type: 'node',
+      purpose: 'leader',
+      port: port,
+      data: data,
+    }}, function(err, res, body) {
+      if (res) {
+        //console.log(res)
+        console.log(`affirmed`)
       }
     })
   }
@@ -79,16 +108,25 @@ function run() {
 	    setTimeout(resolve, (Math.floor(Math.random() * 1500) + 1500), 'timeout')
 	})
 
-	Promise.race([listen(), listenTimeout]).then(function(value) {
-		if (value == 'timeout') {
-      if (status == FOLLOWER) {
+  if (status == LEADER) {
+    setTimeout(function() {
+      leaderSend()
+      run()
+    }, 1000)
+  } else {
+  	Promise.race([listen(), listenTimeout]).then(function(value) {
+      if (value == 'boss_ass_bitch') {
+        leaderSend()
+      } else if (value == 'me_is_the_bitch') {
+        // ee
+      } else if (value == 'timeout') {
         console.log(`AING PORT ${port} SEBAGAI FOLLOWER BErUBAH..... JADI CANDIDATEEEEE`)
         term += 1
         beCandidate()
       }
-    }
-		run()
-	})
+  		run()
+  	})
+  }
 }
 
 run()
