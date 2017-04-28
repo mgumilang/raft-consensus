@@ -16,7 +16,7 @@ $ node nd.js <my port> <no. of neighbors> <node-0 port> ... <node-(n-1) port>
 ```sh
 $ node daemon.js <id> <no. of nodes> <node-0 port> ... <node-(n-1) port>
 ```
-### Balancer Node
+### Balancer Master
 ```sh
 $ node balancer_master.js <no. of nodes> <node-0 port> ... <node-(n-1) port>
 ```
