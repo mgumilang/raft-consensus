@@ -1,3 +1,12 @@
+/**
+Filename: nd.js
+Description: Node's implementation in raft consensus
+Creator:
+- Garmastewira/13514068
+- Ali Akbar/13514080
+- Muhammad Gumilang/13514092
+**/
+
 let argLength = process.argv.length
 if (argLength < 4 || argLength < parseInt(process.argv[3]) + 4) {
   console.error('node nd.js <my port> <no. of neighbors> <node-0 address> ... <node-(n-1) address>')
@@ -27,39 +36,29 @@ let daemonResolvers = {} // to check timout of each daemon, 10000ms
 
 // Node's attributes
 let status = statuses.FOLLOWER
-let node_leader = null
 let term = 0
-let vote_for = 0
-let node_log = []
-let list_neighbors = process.argv.slice(4)
-
+let committedLogs = []
+let uncommittedLogs = {}
+let listNeighbors = process.argv.slice(4)
 let resolver = null // resolver for run function
-let uncommittedLogs = {} // uncommitted logs
 
 app.use(bodyParser.urlencoded({ extended: false }))
 
 // Route to show logs
 app.get('/log', (req, res) => {
-  res.send(node_log)
+  res.send(committedLogs)
 })
 
-// Route to send status
+// Route to send node's status (leader/follower/candidate)
 app.get('/status', (req, res) => {
   res.send(status)
 })
 
-// Request to get number
+// Route to get number request
 app.get('/:number', (req, res) => {
   n = req.params.number
   if (Object.keys(daemon).length != 0) {
-    target = 10000
-    min = 100
-    for (let id in daemon) {
-      if (min >= daemon[id]) {
-        target = parseInt(id) + 10000
-        min = daemon[id]
-      }
-    }
+    let target = getBestServer()
     request(('http://localhost:' + target + '/' + n), function(error, response, body) {
       console.log(`Node #${port} (L): Request prime number #${n}`)
       if (response) {
@@ -80,13 +79,14 @@ app.get('/:number', (req, res) => {
 app.post('/', (req, res) => {
   let type = req.body.type
   if (type == types.NODE) {
+    // Request is from other node
     let get_port = req.body.port
     let get_data = req.body.data
     let get_purpose = req.body.purpose
     let get_term = parseInt(req.body.term)
 
     if (get_purpose == purposes.VOTE) {
-      // Vote handler
+      // Vote message handler
       if (term < get_term) {
         term = get_term
         console.log(`Node #${port}: Voted node #${get_port} for term #${term} leader`)
@@ -96,11 +96,11 @@ app.post('/', (req, res) => {
         console.log(`Node #${port}: Ignored node #${get_port} vote request for term #${term}`)
       }
     } else if (get_purpose == purposes.HEARTBEAT) {
-      // Heartbeat handler
+      // Heartbeat message handler
       console.log(`Node #${port}: Got heartbeat from node #${get_port}`)
       term = get_term
       uncommittedLogs = JSON.parse(req.body.message)
-      node_log = JSON.parse(get_data)
+      committedLogs = JSON.parse(get_data)
       daemon = JSON.parse(req.body.daemon_data)
 
       if (Object.keys(uncommittedLogs).length > 0) {
@@ -110,11 +110,12 @@ app.post('/', (req, res) => {
         resolver(resolveValues.HEARTBEAT_RESPONSE)
       } else {
         res.send('OK')
-        console.log(node_log)
+        console.log(committedLogs)
         resolver(resolveValues.HEARTBEAT_RESPONSE)
       }
     }
   } else if (type == types.DAEMON) {
+    // Request is from a daemon
     if (status == statuses.LEADER) {
       serverID = req.body.id
       serverCPU = parseFloat(req.body.cpu)
@@ -132,12 +133,13 @@ app.post('/', (req, res) => {
   }
 })
 
+// Request vote to other nodes as a leader candidate
 function requestVote() {
   let vote = 1
   let alreadyVoted = false
   status = statuses.CANDIDATE
-  for (let i = 0; i < list_neighbors.length; i++) {
-    request.post({url:('http://localhost:' + list_neighbors[i]), form: {
+  for (let i = 0; i < listNeighbors.length; i++) {
+    request.post({url:('http://localhost:' + listNeighbors[i]), form: {
       type: types.NODE,
       purpose: purposes.VOTE,
       port: port,
@@ -148,9 +150,38 @@ function requestVote() {
         vote += 1
         alreadyVoted = true
         console.log(`Term ${term}, vote for ${port} = ${vote}`)
-        if (vote > Math.floor(list_neighbors.length / 2)) {
+        if (vote > Math.floor(listNeighbors.length / 2)) {
           status = statuses.LEADER
           resolver(resolveValues.HEARTBEAT_CHECK)
+        }
+      }
+    })
+  }
+}
+
+// Append log's entries to other nodes
+function appendEntries() {
+  let commit = 1
+  let alreadyCommit = false
+  for (let i = 0; i < listNeighbors.length; i++) {
+    request.post({url:('http://localhost:' + listNeighbors[i]), form: {
+      type: types.NODE,
+      purpose: purposes.HEARTBEAT,
+      port: port,
+      term: term,
+      data: JSON.stringify(committedLogs),
+      message: JSON.stringify(uncommittedLogs),
+      daemon_data: JSON.stringify(daemon)
+    }}, function(err, res, body) {
+      console.log(`Node #${port} (L): Received message from node #${listNeighbors[i]}: ${body}`)
+      if ((body == 'readyToCommit') && (status == statuses.LEADER)) {
+        commit += 1
+        if (commit > Math.floor(listNeighbors.length / 2) && !alreadyCommit) {
+          alreadyCommit = true
+          commitLog()
+          console.log(`Node #${port} (L): Successfully committed`)
+          resolver(resolveValues.HEARTBEAT_CHECK)
+          uncommittedLogs = {}
         }
       }
     })
@@ -171,55 +202,6 @@ function checkDaemonAvailability(serverID) {
       console.log(`Node #${port}: Deleted server #${serverID} due to timeout`)
     }
   })
-}
-
-function appendEntries() {
-  let commit = 1
-  let alreadyCommit = false
-  for (let i = 0; i < list_neighbors.length; i++) {
-    request.post({url:('http://localhost:' + list_neighbors[i]), form: {
-      type: types.NODE,
-      purpose: purposes.HEARTBEAT,
-      port: port,
-      term: term,
-      data: JSON.stringify(node_log),
-      message: JSON.stringify(uncommittedLogs),
-      daemon_data: JSON.stringify(daemon)
-    }}, function(err, res, body) {
-      console.log(`Node #${port} (L): Received message from node #${list_neighbors[i]}: ${body}`)
-      if ((body == 'readyToCommit') && (status == statuses.LEADER)) {
-        commit += 1
-        if (commit > Math.floor(list_neighbors.length / 2) && !alreadyCommit) {
-          alreadyCommit = true
-          commitLog()
-          console.log(`Node #${port} (L): Successfully committed`)
-          resolver(resolveValues.HEARTBEAT_CHECK)
-          uncommittedLogs = {}
-        }
-      }
-    })
-  }
-}
-
-function listen() {
-	return new Promise((resolve, reject) => {
-		resolver = resolve
-	})
-}
-
-function makeLogString(serverID) {
-  return `(Daemon #${serverID}, Usage = ${uncommittedLogs[serverID]})`
-}
-
-function commitLog() {
-  for (let serverID in uncommittedLogs) {
-    daemon[serverID] = serverCPU
-    daemonPromises[serverID] = new Promise((resolve, reject) => {
-      daemonResolvers[serverID] = resolve
-    })
-    checkDaemonAvailability(serverID)
-    node_log.push(makeLogString(serverID))
-  }
 }
 
 // Node's main function
@@ -249,6 +231,43 @@ function run() {
       }
       run()
   	})
+  }
+}
+
+// Get worker with the lowest CPU usage (as given from each daemon's server)
+function getBestServer() {
+  target = 10000
+  min = 100
+  for (let id in daemon) {
+    if (min > daemon[id]) {
+      target = parseInt(id) + 10000
+      min = daemon[id]
+    }
+  }
+  return target
+}
+
+// Set resolver to a new promise's resolve
+function listen() {
+	return new Promise((resolve, reject) => {
+		resolver = resolve
+	})
+}
+
+// Create logs
+function makeLogString(serverID) {
+  return `(Daemon #${serverID}, Usage = ${uncommittedLogs[serverID]})`
+}
+
+// Commit logs by saving it into string and into daemon statistics of the node
+function commitLog() {
+  for (let serverID in uncommittedLogs) {
+    daemon[serverID] = serverCPU
+    daemonPromises[serverID] = new Promise((resolve, reject) => {
+      daemonResolvers[serverID] = resolve
+    })
+    checkDaemonAvailability(serverID)
+    committedLogs.push(makeLogString(serverID))
   }
 }
 

@@ -1,3 +1,12 @@
+/**
+Filename: nd.js
+Description: Daemon's implementation in raft consensus. Daemon's function is to retrieve the server's CPU usage, and send it to all nodes
+Creator:
+- Garmastewira/13514068
+- Ali Akbar/13514080
+- Muhammad Gumilang/13514092
+**/
+
 let argLength = process.argv.length
 if (argLength < 4 || argLength < parseInt(process.argv[3]) + 4) {
   console.error('node daemon.js <id> <no. of nodes> <node-0 address> ... <node-(n-1) address>')

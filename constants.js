@@ -1,3 +1,12 @@
+/**
+Filename: constants.js
+Description: Constants used in node and daemon
+Creator:
+- Garmastewira/13514068
+- Ali Akbar/13514080
+- Muhammad Gumilang/13514092
+**/
+
 const statuses = {
   FOLLOWER: 'FOLLOWER',
   CANDIDATE: 'CANDIDATE',
@@ -25,5 +34,5 @@ module.exports = {
   statuses: statuses,
   types: types,
   resolveValues: resolveValues,
-  purposes: purposes
+  purposes: purposess
 }

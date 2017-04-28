@@ -1,3 +1,12 @@
+/**
+Filename: balance_master.js
+Description: Act as the interface of the user to the load balancer. Balance master will only contact the leader of the load balancer
+Creator:
+- Garmastewira/13514068
+- Ali Akbar/13514080
+- Muhammad Gumilang/13514092
+**/
+
 let argLength = process.argv.length
 if (argLength < 3 || argLength < parseInt(process.argv[2]) + 3) {
   console.error('node balancer_master.js <no. of nodes> <node-0 address> ... <node-(n-1) address>')
