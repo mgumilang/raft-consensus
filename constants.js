@@ -16,8 +16,14 @@ const resolveValues = {
   DAEMON_RESPONSE: 'DAEMON_RESPONSE'
 }
 
+const purposes = {
+  HEARTBEAT: 'HEARTBEAT',
+  VOTE: 'VOTE'
+}
+
 module.exports = {
   statuses: statuses,
   types: types,
-  resolveValues: resolveValues
+  resolveValues: resolveValues,
+  purposes: purposes
 }

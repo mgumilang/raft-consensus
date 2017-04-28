@@ -4,13 +4,18 @@ if (argLength < 4 || argLength < parseInt(process.argv[3]) + 4) {
   process.exit(1)
 }
 
+// Load libraries
 const Promise = require('bluebird')
 const bodyParser = require('body-parser')
 const express = require('express')
 const request = require('request')
+
+// Load constants
 const statuses = require('./constants.js').statuses
 const types = require('./constants.js').types
 const resolveValues = require('./constants.js').resolveValues
+const purposes = require('./constants.js').purposes
+
 const app = express()
 const port = process.argv[2] || 3000
 console.log('Node started on port', port)
@@ -30,10 +35,12 @@ let current_message = {}
 
 app.use(bodyParser.urlencoded({ extended: false }))
 
+// Route to show logs
 app.get('/log', (req, res) => {
   res.send(node_log)
 })
 
+// Route to response message via POST method
 app.post('/', (req, res) => {
   let type = req.body.type
   if (type == types.NODE) {
@@ -43,7 +50,8 @@ app.post('/', (req, res) => {
     let get_purpose = req.body.purpose
     let get_term = parseInt(req.body.term)
 
-    if (get_purpose == 'vote') {
+    //Vote Handler
+    if (get_purpose == purposes.VOTE) {
       if (term < get_term) {
         term = get_term
         console.log(`Node #${port}: Voted node #${get_port} for term #${term} leader`)
@@ -52,7 +60,7 @@ app.post('/', (req, res) => {
       } else {
         console.log(`Node #${port}: Ignored node #${get_port} vote request for term #${term}`)
       }
-    } else if (get_purpose == 'leader') {
+    } else if (get_purpose == purposes.HEARTBEAT) { //
       term = get_term
       console.log(`Node #${port}: Got heartbeat from node #${get_port}`)
       let get_daemon_data = JSON.parse(req.body.daemon_data)
