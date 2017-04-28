@@ -37,6 +37,9 @@ let resolver = null // resolver for run function
 let current_message = {} // uncommitted logs
 
 app.use(bodyParser.urlencoded({ extended: false }))
+app.get('/:number', (req, res) => {
+  n = req.params.number
+})
 
 // Route to show logs
 app.get('/log', (req, res) => {
@@ -189,6 +192,15 @@ function run() {
   if (status == statuses.LEADER) {
     setTimeout(function() {
       appendEntries()
+      let n = 10
+      request(('http://localhost:10000/' + n), function(err, res, body) {
+        console.log(`Node #${port} (L): Request prime number #${n}`)
+        if (res) {
+          console.log(`Node #${port} (L): Recieved result = ${body}`)
+        } else {
+          console.log(`Node #${port} (L): Error recieving result`)
+        }
+      })
       run()
     }, 1000)
   } else {
