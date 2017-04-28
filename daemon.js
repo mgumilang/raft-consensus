@@ -6,6 +6,7 @@ if (argLength < 4 || argLength < parseInt(process.argv[3]) + 4) {
 
 const request = require('request')
 const os = require('os')
+const types = require('./constants').types
 const id = process.argv[2]
 const numNodes = parseInt(process.argv[3])
 const nodes = process.argv.slice(4)
@@ -15,7 +16,7 @@ function sendID() {
   console.log(`Server #${id}: Usage = ${usage}`)
   for (let i = 0; i < numNodes; i++) {
     request.post(nodes[i]).form({
-      type: 'daemon',
+      type: types.DAEMON,
       id: id,
       cpu: usage
     })
