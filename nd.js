@@ -20,18 +20,21 @@ const app = express()
 const port = process.argv[2] || 3000
 console.log('Node started on port', port)
 
+// Server statistics from daemon
 let daemon = {}
-let daemonResolvers = {} // to check timout of each daemon, 10000ms
 let daemonPromises = {}
-let node_log = []
-let status = statuses.FOLLOWER
-let resolver = null
+let daemonResolvers = {} // to check timout of each daemon, 10000ms
 
+// Node's attributes
+let status = statuses.FOLLOWER
 let node_leader = null
-let list_neighbors = process.argv.slice(4)
 let term = 0
 let vote_for = 0
-let current_message = {}
+let node_log = []
+let list_neighbors = process.argv.slice(4)
+
+let resolver = null // resolver for run function
+let current_message = {} // uncommitted logs
 
 app.use(bodyParser.urlencoded({ extended: false }))
 
@@ -50,8 +53,8 @@ app.post('/', (req, res) => {
     let get_purpose = req.body.purpose
     let get_term = parseInt(req.body.term)
 
-    //Vote Handler
     if (get_purpose == purposes.VOTE) {
+      // Vote handler
       if (term < get_term) {
         term = get_term
         console.log(`Node #${port}: Voted node #${get_port} for term #${term} leader`)
@@ -60,7 +63,8 @@ app.post('/', (req, res) => {
       } else {
         console.log(`Node #${port}: Ignored node #${get_port} vote request for term #${term}`)
       }
-    } else if (get_purpose == purposes.HEARTBEAT) { //
+    } else if (get_purpose == purposes.HEARTBEAT) {
+      // Heartbeat handler
       term = get_term
       console.log(`Node #${port}: Got heartbeat from node #${get_port}`)
       let get_daemon_data = JSON.parse(req.body.daemon_data)
@@ -69,8 +73,8 @@ app.post('/', (req, res) => {
       daemon = get_daemon_data
 
       if (Object.keys(current_message).length > 0) {
+        // There is something to commit
         console.log(`Node #${port}: Ready to commit`)
-        current_message = []
         res.send('readyToCommit')
         resolver(resolveValues.HEARTBEAT_RESPONSE)
       } else {
@@ -108,9 +112,9 @@ function requestVote() {
   for (let i = 0; i < list_neighbors.length; i++) {
     request.post({url:('http://localhost:' + list_neighbors[i]), form: {
       type: types.NODE,
-      purpose: 'vote',
+      purpose: purposes.VOTE,
       port: port,
-      data: 'vote me',
+      data: '',
       term: term
     }}, function(err, res, body) {
       if ((res) && (status == statuses.CANDIDATE) && !alreadyVoted) {
@@ -146,7 +150,7 @@ function appendEntries() {
   for (let i = 0; i < list_neighbors.length; i++) {
     request.post({url:('http://localhost:' + list_neighbors[i]), form: {
       type: types.NODE,
-      purpose: 'leader',
+      purpose: purposes.HEARTBEAT,
       port: port,
       term: term,
       data: JSON.stringify(node_log),
