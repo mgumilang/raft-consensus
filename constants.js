@@ -12,7 +12,8 @@ const types = {
 const resolveValues = {
   HEARTBEAT_CHECK: 'HEARTBEAT_CHECK',
   HEARTBEAT_RESPONSE: 'HEARTBEAT_RESPONSE',
-  TIMEOUT: 'TIMEOUT'
+  TIMEOUT: 'TIMEOUT',
+  DAEMON_RESPONSE: 'DAEMON_RESPONSE'
 }
 
 module.exports = {

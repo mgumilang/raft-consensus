@@ -17,6 +17,7 @@ console.log('Node started on port', port)
 
 let daemon = {}
 let daemonResolvers = {} // to check timout of each daemon, 10000ms
+let daemonPromises = {}
 let node_log = []
 let status = statuses.FOLLOWER
 let resolver = null
@@ -70,7 +71,14 @@ app.post('/', (req, res) => {
     if (status == statuses.LEADER) {
       serverID = req.body.id
       serverCPU = parseFloat(req.body.cpu)
+      if (serverID in daemon) {
+        daemonResolvers[serverID](resolveValues.DAEMON_RESPONSE)
+      }
       daemon[serverID] = serverCPU
+      daemonPromises[serverID] = new Promise((resolve, reject) => {
+        daemonResolvers[serverID] = resolve
+      })
+      checkDaemon(serverID)
 
       // Ask neighbors
       current_message[serverID] = `(Daemon #${serverID}, Usage = ${serverCPU})`
@@ -104,6 +112,20 @@ function requestVote() {
       }
     })
   }
+}
+
+function checkDaemon(serverID) {
+  let listenTimeout = new Promise(function(resolve, reject) {
+	   setTimeout(resolve, 10000, resolveValues.TIMEOUT)
+	})
+  Promise.race([daemonPromises[serverID], listenTimeout]).then((value) => {
+    if (value == resolveValues.TIMEOUT) {
+      delete daemon[serverID]
+      delete daemonPromises[serverID]
+      delete daemonResolvers[serverID]
+      console.log(`Node #${port}: Deleted server #${serverID} due to timeout`)
+    }
+  })
 }
 
 function appendEntries() {
