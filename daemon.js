@@ -15,12 +15,20 @@ function sendID() {
   usage = getUsage()
   console.log(`Server #${id}: Usage = ${usage}`)
   for (let i = 0; i < numNodes; i++) {
-    request.post(nodes[i]).form({
-      type: types.DAEMON,
-      id: id,
-      cpu: usage
+    request.post({
+      url: nodes[i],
+      form: {
+        type: types.DAEMON,
+        id: id,
+        cpu: usage
+      }
+    }, function(err, res, body) {
+      if (err) {
+        console.log(`Server #${id}: Failed, node ${nodes[i]} is dead`)
+      } else {
+        console.log(`Server #${id}: Sent to ${nodes[i]}`)
+      }
     })
-    console.log(`Server #${id}: Sent to Node #${i} = ${nodes[i]}`)
   }
 }
 

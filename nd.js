@@ -25,14 +25,14 @@ let node_leader = null
 let list_neighbors = process.argv.slice(4)
 let term = 0
 let vote_for = 0
-let current_message = ''
+let current_message = {}
 
 app.use(bodyParser.urlencoded({ extended: false }))
 
 app.post('/', (req, res) => {
   let type = req.body.type
   if (type == types.NODE) {
-    current_message = ''
+    current_message = {}
     let get_port = req.body.port
     let get_data = req.body.data
     let get_purpose = req.body.purpose
@@ -51,13 +51,13 @@ app.post('/', (req, res) => {
       term = get_term
       console.log(`Node #${port}: Got heartbeat from node #${get_port}`)
       let get_daemon_data = JSON.parse(req.body.daemon_data)
-      current_message = req.body.message
+      current_message = JSON.parse(req.body.message)
       node_log = JSON.parse(get_data)
       daemon = get_daemon_data
 
-      if (current_message != '') {
+      if (Object.keys(current_message).length > 0) {
         console.log(`Node #${port}: Ready to commit`)
-        current_message = ''
+        current_message = []
         res.send('readyToCommit')
         resolver(resolveValues.HEARTBEAT_RESPONSE)
       } else {
@@ -69,13 +69,15 @@ app.post('/', (req, res) => {
   } else if (type == types.DAEMON) {
     if (status == statuses.LEADER) {
       serverID = req.body.id
-      serverCPU = parseInt(req.body.cpu)
+      serverCPU = parseFloat(req.body.cpu)
+      daemon[serverID] = serverCPU
 
       // Ask neighbors
-      current_message = `(Daemon #${serverID}, Usage = ${serverCPU})`
+      current_message[serverID] = `(Daemon #${serverID}, Usage = ${serverCPU})`
       console.log(`Node #${port}: Received from server #${serverID}, Usage = ${serverCPU}`)
       resolver(resolveValues.HEARTBEAT_CHECK)
     }
+    res.send('OK')
   }
 })
 
@@ -91,8 +93,9 @@ function requestVote() {
       data: 'vote me',
       term: term
     }}, function(err, res, body) {
-      if ((res) && (status == statuses.CANDIDATE)) {
+      if ((res) && (status == statuses.CANDIDATE) && !alreadyVoted) {
         vote += 1
+        alreadyVoted = true
         console.log(`Term ${term}, vote for ${port} = ${vote}`)
         if (vote > Math.floor(list_neighbors.length / 2)) {
           status = statuses.LEADER
@@ -113,7 +116,7 @@ function appendEntries() {
       port: port,
       term: term,
       data: JSON.stringify(node_log),
-      message: current_message,
+      message: JSON.stringify(current_message),
       daemon_data: JSON.stringify(daemon)
     }}, function(err, res, body) {
       console.log(`Node #${port} (L): Received message from node #${list_neighbors[i]}: ${body}`)
@@ -121,14 +124,15 @@ function appendEntries() {
         commit += 1
         if (commit > Math.floor(list_neighbors.length / 2) && !alreadyCommit) {
           alreadyCommit = true
-          node_log.push(current_message)
-          daemon[serverID] = serverCPU
+          for (let id in current_message) {
+            node_log.push(current_message[id])
+          }
           console.log(`Node #${port} (L): Successfully committed`)
           resolver(resolveValues.HEARTBEAT_CHECK)
-          current_message = ''
+          current_message = {}
         }
       } else {
-        current_message = ''
+        current_message = {}
       }
     })
   }
