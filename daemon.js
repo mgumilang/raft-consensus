@@ -11,6 +11,11 @@ const id = process.argv[2]
 const numNodes = parseInt(process.argv[3])
 const nodes = process.argv.slice(4)
 
+// Start related worker
+// Worker's port = Daemon's id + 10000
+let spawn = require("child_process").spawn;
+let processX = spawn('python',[__dirname + "/worker.py", parseInt(id) + 10000]);
+
 function sendID() {
   usage = getUsage()
   console.log(`Server #${id}: Usage = ${usage}`)

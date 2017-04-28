@@ -37,6 +37,18 @@ let resolver = null // resolver for run function
 let current_message = {} // uncommitted logs
 
 app.use(bodyParser.urlencoded({ extended: false }))
+
+// Route to show logs
+app.get('/log', (req, res) => {
+  res.send(node_log)
+})
+
+// Route to send status
+app.get('/status', (req, res) => {
+  res.send(status)
+})
+
+// Request to get number
 app.get('/:number', (req, res) => {
   n = req.params.number
   if (Object.keys(daemon).length != 0) {
@@ -44,33 +56,24 @@ app.get('/:number', (req, res) => {
     min = 100
     for (let id in daemon) {
       if (min >= daemon[id]) {
-        target = id + 10000
+        target = parseInt(id) + 10000
         min = daemon[id]
       }
     }
     request(('http://localhost:' + target + '/' + n), function(error, response, body) {
       console.log(`Node #${port} (L): Request prime number #${n}`)
       if (response) {
-        console.log(`Node #${port} (L): Received result = ${body}`)
-        res.send(`Received result = ${body}`)
+        console.log(`Node #${port} (L): Received result from port ${target} = ${body}`)
+        res.send(`Received result from port ${target} = ${body}`)
       } else {
-        console.log(`Node #${port} (L): Error receiving result`)
-        res.send('Error receiving result')
+        console.log(`Node #${port} (L): Error receiving result from port ${target}`)
+        res.send(`Error receiving result from port ${target}`)
       }
     })
   } else {
     console.log(`Node #${port} (L): No daemon found`)
     res.send('No daemon found')
   }
-})
-
-// Route to show logs
-app.get('/log', (req, res) => {
-  res.send(node_log)
-})
-
-app.get('/status', (req, res) => {
-  res.send(status)
 })
 
 // Route to response message via POST method

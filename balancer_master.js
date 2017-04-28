@@ -17,10 +17,10 @@ const app = express()
 app.get('/:number', (req, res) => {
   number = req.params.number
   for (let i = 0; i < nodes.length; i++) {
-    request(nodes[i] + '/status', (err, res, body) => {
-      if (body == statuses.LEADER) {
-        request(nodes[i] + `/${number}`, (err, res, body) => {
-          res.send(body)
+    request(nodes[i] + '/status', (err1, res1, body1) => {
+      if (body1 == statuses.LEADER) {
+        request(nodes[i] + `/${number}`, (err2, res2, body2) => {
+          res.send(`Received result from port ${nodes[i]}: ${body2}`)
         })
       }
     })
