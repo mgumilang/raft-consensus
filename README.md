@@ -27,3 +27,7 @@ $ node balancer_master.js <no. of nodes> <node-0 port> ... <node-(n-1) port>
 **daemon.js**: Daemon's implementation in raft consensus. Daemon's function is to retrieve the server's CPU usage, and send it to all nodes
 **nd.js**: Node's implementation in raft consensus
 **worker.py**: Worker to receive *n* and send *n*th prime number
+
+## Referensi
+- http://thesecretlivesofdata.com/raft/
+- https://raft.github.io/
