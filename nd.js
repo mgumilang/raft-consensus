@@ -43,6 +43,10 @@ app.get('/log', (req, res) => {
   res.send(node_log)
 })
 
+app.get('/status', (req, res) => {
+  res.send(status)
+})
+
 // Route to response message via POST method
 app.post('/', (req, res) => {
   let type = req.body.type
