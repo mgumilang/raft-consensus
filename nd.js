@@ -34,7 +34,7 @@ let node_log = []
 let list_neighbors = process.argv.slice(4)
 
 let resolver = null // resolver for run function
-let current_message = {} // uncommitted logs
+let uncommittedLogs = {} // uncommitted logs
 
 app.use(bodyParser.urlencoded({ extended: false }))
 
@@ -80,7 +80,6 @@ app.get('/:number', (req, res) => {
 app.post('/', (req, res) => {
   let type = req.body.type
   if (type == types.NODE) {
-    current_message = {}
     let get_port = req.body.port
     let get_data = req.body.data
     let get_purpose = req.body.purpose
@@ -98,14 +97,13 @@ app.post('/', (req, res) => {
       }
     } else if (get_purpose == purposes.HEARTBEAT) {
       // Heartbeat handler
-      term = get_term
       console.log(`Node #${port}: Got heartbeat from node #${get_port}`)
-      let get_daemon_data = JSON.parse(req.body.daemon_data)
-      current_message = JSON.parse(req.body.message)
+      term = get_term
+      uncommittedLogs = JSON.parse(req.body.message)
       node_log = JSON.parse(get_data)
-      daemon = get_daemon_data
+      daemon = JSON.parse(req.body.daemon_data)
 
-      if (Object.keys(current_message).length > 0) {
+      if (Object.keys(uncommittedLogs).length > 0) {
         // There is something to commit
         console.log(`Node #${port}: Ready to commit`)
         res.send('readyToCommit')
@@ -122,15 +120,11 @@ app.post('/', (req, res) => {
       serverCPU = parseFloat(req.body.cpu)
       if (serverID in daemon) {
         daemonResolvers[serverID](resolveValues.DAEMON_RESPONSE)
+        checkDaemonAvailability(serverID)
       }
-      daemon[serverID] = serverCPU
-      daemonPromises[serverID] = new Promise((resolve, reject) => {
-        daemonResolvers[serverID] = resolve
-      })
-      checkDaemon(serverID)
 
-      // Ask neighbors
-      current_message[serverID] = `(Daemon #${serverID}, Usage = ${serverCPU})`
+      // Ask neighbors' availability to commit
+      uncommittedLogs[serverID] = serverCPU
       console.log(`Node #${port}: Received from server #${serverID}, Usage = ${serverCPU}`)
       resolver(resolveValues.HEARTBEAT_CHECK)
     }
@@ -163,7 +157,9 @@ function requestVote() {
   }
 }
 
-function checkDaemon(serverID) {
+// Check daemon's availability for 10000ms
+// If timeout, delete daemon from saved servers
+function checkDaemonAvailability(serverID) {
   let listenTimeout = new Promise(function(resolve, reject) {
 	   setTimeout(resolve, 10000, resolveValues.TIMEOUT)
 	})
@@ -187,7 +183,7 @@ function appendEntries() {
       port: port,
       term: term,
       data: JSON.stringify(node_log),
-      message: JSON.stringify(current_message),
+      message: JSON.stringify(uncommittedLogs),
       daemon_data: JSON.stringify(daemon)
     }}, function(err, res, body) {
       console.log(`Node #${port} (L): Received message from node #${list_neighbors[i]}: ${body}`)
@@ -195,12 +191,10 @@ function appendEntries() {
         commit += 1
         if (commit > Math.floor(list_neighbors.length / 2) && !alreadyCommit) {
           alreadyCommit = true
-          for (let id in current_message) {
-            node_log.push(current_message[id])
-          }
+          commitLog()
           console.log(`Node #${port} (L): Successfully committed`)
           resolver(resolveValues.HEARTBEAT_CHECK)
-          current_message = {}
+          uncommittedLogs = {}
         }
       }
     })
@@ -213,6 +207,22 @@ function listen() {
 	})
 }
 
+function makeLogString(serverID) {
+  return `(Daemon #${serverID}, Usage = ${uncommittedLogs[serverID]})`
+}
+
+function commitLog() {
+  for (let serverID in uncommittedLogs) {
+    daemon[serverID] = serverCPU
+    daemonPromises[serverID] = new Promise((resolve, reject) => {
+      daemonResolvers[serverID] = resolve
+    })
+    checkDaemonAvailability(serverID)
+    node_log.push(makeLogString(serverID))
+  }
+}
+
+// Node's main function
 function run() {
   // Random timeout between 1500ms - 3000ms
 	let listenTimeout = new Promise(function(resolve, reject) {
@@ -220,11 +230,13 @@ function run() {
 	})
 
   if (status == statuses.LEADER) {
+    // Keep sending heartbeats with the uncommittedLogs
     setTimeout(function() {
       appendEntries()
       run()
     }, 1000)
   } else {
+    // Listen to response from other nodes for a time limit
   	Promise.race([listen(), listenTimeout]).then(function(value) {
       if (value == resolveValues.HEARTBEAT_CHECK) {
         appendEntries()
