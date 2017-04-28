@@ -34,5 +34,5 @@ module.exports = {
   statuses: statuses,
   types: types,
   resolveValues: resolveValues,
-  purposes: purposess
+  purposes: purposes
 }
