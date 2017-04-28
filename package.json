@@ -17,13 +17,10 @@
   },
   "homepage": "https://github.com/mgumilang/raft-consensus#readme",
   "dependencies": {
-    "babel-preset-latest": "^6.24.1",
     "bluebird": "^3.5.0",
     "body-parser": "^1.17.1",
     "express": "^4.15.2",
     "request": "^2.81.0"
   },
-  "devDependencies": {
-    "babel-cli": "^6.24.1"
-  }
+  "devDependencies": {}
 }
