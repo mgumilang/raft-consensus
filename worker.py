@@ -2,7 +2,7 @@
 from http.server import HTTPServer
 from http.server import BaseHTTPRequestHandler
 
-PORT = 13337
+PORT = 10000
 
 class WorkerHandler(BaseHTTPRequestHandler):
     def prime(self, n):

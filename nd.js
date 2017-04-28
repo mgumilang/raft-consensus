@@ -37,6 +37,32 @@ let resolver = null // resolver for run function
 let current_message = {} // uncommitted logs
 
 app.use(bodyParser.urlencoded({ extended: false }))
+app.get('/:number', (req, res) => {
+  n = req.params.number
+  if (Object.keys(daemon).length != 0) {
+    target = 10000
+    min = 100
+    for (let id in daemon) {
+      if (min >= daemon[id]) {
+        target = id + 10000
+        min = daemon[id]
+      }
+    }
+    request(('http://localhost:' + target + '/' + n), function(error, response, body) {
+      console.log(`Node #${port} (L): Request prime number #${n}`)
+      if (response) {
+        console.log(`Node #${port} (L): Received result = ${body}`)
+        res.send(`Received result = ${body}`)
+      } else {
+        console.log(`Node #${port} (L): Error receiving result`)
+        res.send('Error receiving result')
+      }
+    })
+  } else {
+    console.log(`Node #${port} (L): No daemon found`)
+    res.send('No daemon found')
+  }
+})
 
 // Route to show logs
 app.get('/log', (req, res) => {
