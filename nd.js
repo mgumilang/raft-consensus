@@ -30,6 +30,10 @@ let current_message = {}
 
 app.use(bodyParser.urlencoded({ extended: false }))
 
+app.get('/log', (req, res) => {
+  res.send(node_log)
+})
+
 app.post('/', (req, res) => {
   let type = req.body.type
   if (type == types.NODE) {
@@ -153,8 +157,6 @@ function appendEntries() {
           resolver(resolveValues.HEARTBEAT_CHECK)
           current_message = {}
         }
-      } else {
-        current_message = {}
       }
     })
   }
