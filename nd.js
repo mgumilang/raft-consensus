@@ -227,8 +227,11 @@ function checkDaemonAvailability(serverID) {
 	})
   Promise.race([daemonPromises[serverID], listenTimeout]).then((value) => {
     if (value == resolveValues.TIMEOUT) {
-      uncommittedLogs[serverID].serverCPU = -1
-      console.log(`Node #${port}: Deleted server #${serverID} due to timeout`)
+      uncommittedLogs[serverID] = {
+        serverIP: daemon[serverID].serverIP,
+        serverCPU: -1
+      }
+      console.log(`Node #${port}: Prepared to delete server #${serverID} due to timeout`)
     }
   })
 }
@@ -288,10 +291,11 @@ function listen() {
 // Commit logs by saving it into string and into daemon statistics of the node
 function commitLog() {
   for (let serverID in uncommittedLogs) {
-    if (uncommittedLogs[serverID] == -1) {
+    if (uncommittedLogs[serverID].serverCPU == -1) {
       delete daemon[serverID]
       delete daemonPromises[serverID]
       delete daemonResolvers[serverID]
+      console.log(`Node #${port}: Deleted server #${serverID} due to timeout`)
     } else {
       daemon[serverID] = uncommittedLogs[serverID]
       daemonPromises[serverID] = new Promise((resolve, reject) => {
@@ -301,8 +305,8 @@ function commitLog() {
     }
     committedLogs.push({
       serverID: serverID,
-      serverIP: daemon[serverID].serverIP,
-      serverCPU: daemon[serverID].serverCPU
+      serverIP: uncommittedLogs[serverID].serverIP,
+      serverCPU: uncommittedLogs[serverID].serverCPU
     })
   }
 }
