@@ -20,6 +20,7 @@
     "bluebird": "^3.5.0",
     "body-parser": "^1.17.1",
     "express": "^4.15.2",
+    "os-utils": "0.0.14",
     "request": "^2.81.0"
   },
   "devDependencies": {}

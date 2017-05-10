@@ -51,7 +51,7 @@ app.get('/log', (req, res) => {
 
 // Route to send node's status (leader/follower/candidate)
 app.get('/status', (req, res) => {
-  res.send(status)
+  res.json(status)
 })
 
 // Route to get number request
@@ -90,7 +90,11 @@ app.post('/', (req, res) => {
       if (term < get_term) {
         term = get_term
         console.log(`Node #${port}: Voted node #${get_port} for term #${term} leader`)
-        res.send('OK')
+        console.log('YO', get_data)
+        console.log('YI', committedLogs)
+        if (!get_data || get_data.length >= committedLogs.length) {
+          res.send('OK')
+        }
         resolver()
       } else {
         console.log(`Node #${port}: Ignored node #${get_port} vote request for term #${term}`)
@@ -110,7 +114,6 @@ app.post('/', (req, res) => {
         resolver(resolveValues.HEARTBEAT_RESPONSE)
       } else {
         res.send('OK')
-        console.log(committedLogs)
         resolver(resolveValues.HEARTBEAT_RESPONSE)
       }
     }
@@ -147,11 +150,11 @@ function requestVote() {
   let alreadyVoted = false
   status = statuses.CANDIDATE
   for (let i = 0; i < listNeighbors.length; i++) {
-    request.post({url:('http://localhost:' + listNeighbors[i]), form: {
+    request.post({url:(listNeighbors[i]), form: {
       type: types.NODE,
       purpose: purposes.VOTE,
       port: port,
-      data: '',
+      data: committedLogs,
       term: term
     }}, function(err, res, body) {
       if ((res) && (status == statuses.CANDIDATE) && !alreadyVoted) {
@@ -172,7 +175,7 @@ function appendEntries() {
   let commit = 1
   let alreadyCommit = false
   for (let i = 0; i < listNeighbors.length; i++) {
-    request.post({url:('http://localhost:' + listNeighbors[i]), form: {
+    request.post({url:(listNeighbors[i]), form: {
       type: types.NODE,
       purpose: purposes.HEARTBEAT,
       port: port,
@@ -204,9 +207,7 @@ function checkDaemonAvailability(serverID) {
 	})
   Promise.race([daemonPromises[serverID], listenTimeout]).then((value) => {
     if (value == resolveValues.TIMEOUT) {
-      delete daemon[serverID]
-      delete daemonPromises[serverID]
-      delete daemonResolvers[serverID]
+      uncommittedLogs[serverID].serverCPU = -1
       console.log(`Node #${port}: Deleted server #${serverID} due to timeout`)
     }
   })
@@ -264,20 +265,25 @@ function listen() {
 	})
 }
 
-// Create logs
-function makeLogString(serverID) {
-  return `(Daemon #${serverID}, Usage = ${uncommittedLogs[serverID].serverCPU})`
-}
-
 // Commit logs by saving it into string and into daemon statistics of the node
 function commitLog() {
   for (let serverID in uncommittedLogs) {
-    daemon[serverID] = uncommittedLogs[serverID]
-    daemonPromises[serverID] = new Promise((resolve, reject) => {
-      daemonResolvers[serverID] = resolve
+    if (uncommittedLogs[serverID] == -1) {
+      delete daemon[serverID]
+      delete daemonPromises[serverID]
+      delete daemonResolvers[serverID]
+    } else {
+      daemon[serverID] = uncommittedLogs[serverID]
+      daemonPromises[serverID] = new Promise((resolve, reject) => {
+        daemonResolvers[serverID] = resolve
+      })
+      checkDaemonAvailability(serverID)
+    }
+    committedLogs.push({
+      serverID: serverID,
+      serverIP: daemon[serverID].serverIP,
+      serverCPU: daemon[serverID].serverCPU
     })
-    checkDaemonAvailability(serverID)
-    committedLogs.push(makeLogString(serverID))
   }
 }
 
