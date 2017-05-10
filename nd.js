@@ -81,7 +81,7 @@ app.post('/', (req, res) => {
   if (type == types.NODE) {
     // Request is from other node
     let get_port = req.body.port
-    let get_data = req.body.data
+    let get_data = JSON.parse(req.body.data)
     let get_purpose = req.body.purpose
     let get_term = parseInt(req.body.term)
 
@@ -92,7 +92,7 @@ app.post('/', (req, res) => {
         console.log(`Node #${port}: Voted node #${get_port} for term #${term} leader`)
         console.log('YO', get_data)
         console.log('YI', committedLogs)
-        if (!get_data || get_data.length >= committedLogs.length) {
+        if (get_data && get_data.length >= committedLogs.length) {
           res.send('OK')
         }
         resolver()
@@ -100,11 +100,19 @@ app.post('/', (req, res) => {
         console.log(`Node #${port}: Ignored node #${get_port} vote request for term #${term}`)
       }
     } else if (get_purpose == purposes.HEARTBEAT) {
+      if (status == statuses.LEADER) {
+        if (term < get_term) {
+          term = get_term
+          if (get_data && get_data.length >= committedLogs.length) {
+            status = statuses.FOLLOWER
+          }
+        }
+      }
       // Heartbeat message handler
       console.log(`Node #${port}: Got heartbeat from node #${get_port}`)
       term = get_term
       uncommittedLogs = JSON.parse(req.body.message)
-      committedLogs = JSON.parse(get_data)
+      committedLogs = get_data
       daemon = JSON.parse(req.body.daemon_data)
 
       if (Object.keys(uncommittedLogs).length > 0) {
@@ -154,7 +162,7 @@ function requestVote() {
       type: types.NODE,
       purpose: purposes.VOTE,
       port: port,
-      data: committedLogs,
+      data: JSON.stringify(committedLogs),
       term: term
     }}, function(err, res, body) {
       if ((res) && (status == statuses.CANDIDATE) && !alreadyVoted) {
