@@ -86,17 +86,24 @@ app.post('/', (req, res) => {
     let get_term = parseInt(req.body.term)
 
     if (get_purpose == purposes.VOTE) {
+      let termChosen = false
+      let logChosen = false
+
       // Vote message handler
       if (term < get_term) {
         term = get_term
+        termChosen = true
         console.log(`Node #${port}: Updated term to #${term}`)
       }
 
       if (get_data && get_data.length >= committedLogs.length) {
-        console.log(`Node #${port}: Voted node #${get_port} for term #${term} leader`)
-        res.send('OK')
+        logChosen = true
       } else {
         console.log(`Node #${port}: Ignored node #${get_port} vote request for term #${term}`)
+      }
+
+      if (termChosen && logChosen) {
+        res.send('OK')
       }
       resolver()
     } else if (get_purpose == purposes.HEARTBEAT) {
