@@ -89,40 +89,43 @@ app.post('/', (req, res) => {
       // Vote message handler
       if (term < get_term) {
         term = get_term
+        console.log(`Node #${port}: Updated term to #${term}`)
+      }
+
+      if (get_data && get_data.length >= committedLogs.length) {
         console.log(`Node #${port}: Voted node #${get_port} for term #${term} leader`)
-        console.log('YO', get_data)
-        console.log('YI', committedLogs)
-        if (get_data && get_data.length >= committedLogs.length) {
-          res.send('OK')
-        }
-        resolver()
+        res.send('OK')
       } else {
         console.log(`Node #${port}: Ignored node #${get_port} vote request for term #${term}`)
       }
+      resolver()
     } else if (get_purpose == purposes.HEARTBEAT) {
       if (status == statuses.LEADER) {
         if (term < get_term) {
           term = get_term
-          if (get_data && get_data.length >= committedLogs.length) {
-            status = statuses.FOLLOWER
-          }
+        }
+        if (get_data && get_data.length >= committedLogs.length) {
+          status = statuses.FOLLOWER
+          console.log(`Node #${port}: Changed status from leader to follower`)
         }
       }
-      // Heartbeat message handler
-      console.log(`Node #${port}: Got heartbeat from node #${get_port}`)
-      term = get_term
-      uncommittedLogs = JSON.parse(req.body.message)
-      committedLogs = get_data
-      daemon = JSON.parse(req.body.daemon_data)
+      if (status == statuses.FOLLOWER) {
+        // Heartbeat message handler
+        console.log(`Node #${port}: Got heartbeat from node #${get_port}`)
+        term = get_term
+        uncommittedLogs = JSON.parse(req.body.message)
+        committedLogs = get_data
+        daemon = JSON.parse(req.body.daemon_data)
 
-      if (Object.keys(uncommittedLogs).length > 0) {
-        // There is something to commit
-        console.log(`Node #${port}: Ready to commit`)
-        res.send('readyToCommit')
-        resolver(resolveValues.HEARTBEAT_RESPONSE)
-      } else {
-        res.send('OK')
-        resolver(resolveValues.HEARTBEAT_RESPONSE)
+        if (Object.keys(uncommittedLogs).length > 0) {
+          // There is something to commit
+          console.log(`Node #${port}: Ready to commit`)
+          res.send('readyToCommit')
+          resolver(resolveValues.HEARTBEAT_RESPONSE)
+        } else {
+          res.send('OK')
+          resolver(resolveValues.HEARTBEAT_RESPONSE)
+        }
       }
     }
   } else if (type == types.DAEMON) {
@@ -225,7 +228,7 @@ function checkDaemonAvailability(serverID) {
 function run() {
   // Random timeout between 1500ms - 3000ms
 	let listenTimeout = new Promise(function(resolve, reject) {
-	    setTimeout(resolve, (Math.floor(Math.random() * 1500) + 1500), resolveValues.TIMEOUT)
+	    setTimeout(resolve, (Math.floor(Math.random() * 1500) + 3000), resolveValues.TIMEOUT)
 	})
 
   if (status == statuses.LEADER) {
