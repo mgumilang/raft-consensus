@@ -114,8 +114,6 @@ app.post('/', (req, res) => {
         if (get_data && get_data.length >= committedLogs.length) {
           status = statuses.FOLLOWER
           console.log(`Node #${port}: Changed status from leader to follower`)
-        } else {
-          resolver()
         }
       }
       if (status == statuses.FOLLOWER) {
@@ -135,6 +133,8 @@ app.post('/', (req, res) => {
           res.send('OK')
           resolver(resolveValues.HEARTBEAT_RESPONSE)
         }
+      } else {
+        resolver()
       }
     }
   } else if (type == types.DAEMON) {
