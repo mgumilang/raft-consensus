@@ -179,9 +179,9 @@ function requestVote() {
     }}, function(err, res, body) {
       if ((res) && (status == statuses.CANDIDATE) && !alreadyVoted) {
         vote += 1
-        alreadyVoted = true
         console.log(`Term ${term}, vote for ${port} = ${vote}`)
         if (vote > Math.floor(listNeighbors.length / 2)) {
+          alreadyVoted = true
           status = statuses.LEADER
           resolver(resolveValues.HEARTBEAT_CHECK)
         }
