@@ -114,6 +114,8 @@ app.post('/', (req, res) => {
         if (get_data && get_data.length >= committedLogs.length) {
           status = statuses.FOLLOWER
           console.log(`Node #${port}: Changed status from leader to follower`)
+        } else {
+          resolver()
         }
       }
       if (status == statuses.FOLLOWER) {
