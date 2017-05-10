@@ -59,7 +59,7 @@ app.get('/:number', (req, res) => {
   n = req.params.number
   if (Object.keys(daemon).length != 0) {
     let target = getBestServer()
-    request(('http://localhost:' + target + '/' + n), function(error, response, body) {
+    request(`http://${target}/${n}`, function(error, response, body) {
       console.log(`Node #${port} (L): Request prime number #${n}`)
       if (response) {
         console.log(`Node #${port} (L): Received result from port ${target} = ${body}`)
@@ -115,17 +115,25 @@ app.post('/', (req, res) => {
       }
     }
   } else if (type == types.DAEMON) {
+    let serverIP = req.connection.remoteAddress.substring(7)
+    let serverID = req.body.id
+
+    console.log(`Node #${port}: Received from daemon ${serverID}`)
     // Request is from a daemon
     if (status == statuses.LEADER) {
-      serverID = req.body.id
       serverCPU = parseFloat(req.body.cpu)
       if (serverID in daemon) {
-        daemonResolvers[serverID](resolveValues.DAEMON_RESPONSE)
+        if (serverID in daemonResolvers) {
+          daemonResolvers[serverID](resolveValues.DAEMON_RESPONSE)
+        }
         checkDaemonAvailability(serverID)
       }
 
       // Ask neighbors' availability to commit
-      uncommittedLogs[serverID] = serverCPU
+      uncommittedLogs[serverID] = {
+        serverIP: serverIP,
+        serverCPU: serverCPU
+      }
       console.log(`Node #${port}: Received from server #${serverID}, Usage = ${serverCPU}`)
       resolver(resolveValues.HEARTBEAT_CHECK)
     }
@@ -236,15 +244,17 @@ function run() {
 
 // Get worker with the lowest CPU usage (as given from each daemon's server)
 function getBestServer() {
-  target = 10000
   min = 100
+  minID = 1000
   for (let id in daemon) {
-    if (min > daemon[id]) {
-      target = parseInt(id) + 10000
-      min = daemon[id]
+    if (min > daemon[id].serverCPU) {
+      min = daemon[id].serverCPU
+      minID = id
     }
   }
-  return target
+  console.log(daemon)
+  let url = daemon[minID].serverIP + `:${10000 + parseInt(minID)}`
+  return url
 }
 
 // Set resolver to a new promise's resolve
@@ -256,13 +266,13 @@ function listen() {
 
 // Create logs
 function makeLogString(serverID) {
-  return `(Daemon #${serverID}, Usage = ${uncommittedLogs[serverID]})`
+  return `(Daemon #${serverID}, Usage = ${uncommittedLogs[serverID].serverCPU})`
 }
 
 // Commit logs by saving it into string and into daemon statistics of the node
 function commitLog() {
   for (let serverID in uncommittedLogs) {
-    daemon[serverID] = serverCPU
+    daemon[serverID] = uncommittedLogs[serverID]
     daemonPromises[serverID] = new Promise((resolve, reject) => {
       daemonResolvers[serverID] = resolve
     })
